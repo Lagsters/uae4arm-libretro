@@ -21,6 +21,7 @@
 #endif
 
 static uae_u32 natmem_size;
+#if !defined(VITA)
 #ifndef MAP_FIXED_NOREPLACE
 #define MAP_FIXED_NOREPLACE 0x100000
 #endif
@@ -30,6 +31,7 @@ static void *mmap_exact(void *addr, size_t len) {
   if (p != MAP_FAILED && p != addr) { munmap(p, len); return MAP_FAILED; }
   return p;
 }
+#endif
 
 uae_u32 max_z3fastmem;
 #ifdef VITA
