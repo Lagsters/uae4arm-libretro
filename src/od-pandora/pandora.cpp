@@ -277,7 +277,7 @@ void target_quit (void)
 }
 
 
-static void fix_apmodes(struct uae_prefs *p)
+void fix_apmodes(struct uae_prefs *p)
 {
   if(p->ntscmode)
   {

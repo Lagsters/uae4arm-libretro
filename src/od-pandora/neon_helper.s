@@ -148,10 +148,16 @@ ARM_doline_n1:
 
   mov       r3, #1600
   mul       r2, r2, r3
-  ldr       r3, =line_data
+  movw r3, #:lower16:(line_data - (.Lpicl1 + 8))
+  movt r3, #:upper16:(line_data - (.Lpicl1 + 8))
+.Lpicl1:
+  add r3, pc, r3
   add       r3, r3, r2           @ real_bplpt[0]
 
-  ldr       lr, =Lookup_doline_n1
+  movw lr, #:lower16:(Lookup_doline_n1 - (.Lpiclk + 8))
+  movt lr, #:upper16:(Lookup_doline_n1 - (.Lpiclk + 8))
+.Lpiclk:
+  add lr, pc, lr
  
 ARM_doline_n1_loop:
   ldr       r2, [r3], #4
@@ -204,7 +210,10 @@ NEON_doline_n2:
 
   mov       r3, #1600
   mul       r2, r2, r3
-  ldr       r3, =line_data
+  movw r3, #:lower16:(line_data - (.Lpicl2 + 8))
+  movt r3, #:upper16:(line_data - (.Lpicl2 + 8))
+.Lpicl2:
+  add r3, pc, r3
   add       r2, r3, r2           @ real_bplpt[0]
   add       r3, r2, #200
   
@@ -283,7 +292,10 @@ NEON_doline_n3:
 
   mov       r3, #1600
   mul       r2, r2, r3
-  ldr       r3, =line_data
+  movw r3, #:lower16:(line_data - (.Lpicl3 + 8))
+  movt r3, #:upper16:(line_data - (.Lpicl3 + 8))
+.Lpicl3:
+  add r3, pc, r3
   add       r2, r3, r2           @ real_bplpt[0]
   add       r3, r2, #200
   add       lr, r3, #200
@@ -358,7 +370,7 @@ NEON_doline_n3_loop:
   vst1.8    {d0, d1, d2, d3}, [r0]!
   
   cmp       r1, #1    @ Exit from here if odd number of words
-  ldmeqia   sp!, {pc}
+  ldmiaeq   sp!, {pc}
   
   subs      r1, r1, #2    @ We handle 2 words (64 bit) per loop: wordcount -= 2
 
@@ -395,7 +407,10 @@ NEON_doline_n4:
 
   mov       r3, #1600
   mul       r2, r2, r3
-  ldr       r3, =line_data
+  movw r3, #:lower16:(line_data - (.Lpicl4 + 8))
+  movt r3, #:upper16:(line_data - (.Lpicl4 + 8))
+.Lpicl4:
+  add r3, pc, r3
   add       r2, r3, r2           @ real_bplpt[0]
   add       r3, r2, #200
   add       r4, r3, #200
@@ -475,7 +490,7 @@ NEON_doline_n4_loop:
   vst1.8    {d0, d1, d2, d3}, [r0]!
   
   cmp       r1, #1    @ Exit from here if odd number of words
-  ldmeqia   sp!, {r4, pc}
+  ldmiaeq   sp!, {r4, pc}
   
   subs      r1, r1, #2    @ We handle 2 words (64 bit) per loop: wordcount -= 2
 
@@ -515,7 +530,10 @@ NEON_doline_n5:
   
   mov       r3, #1600
   mul       r2, r2, r3
-  ldr       r3, =line_data
+  movw r3, #:lower16:(line_data - (.Lpicl5 + 8))
+  movt r3, #:upper16:(line_data - (.Lpicl5 + 8))
+.Lpicl5:
+  add r3, pc, r3
   add       r2, r3, r2           @ real_bplpt[0]
   add       r3, r2, #200
   add       r4, r3, #200
@@ -609,7 +627,7 @@ NEON_doline_n5_loop:
   vst1.8    {d0, d1, d2, d3}, [r0]!
   
   cmp       r1, #1    @ Exit from here if odd number of words
-  ldmeqia   sp!, {r4-r5, pc}
+  ldmiaeq   sp!, {r4-r5, pc}
 
   subs      r1, r1, #2    @ We handle 2 words (64 bit) per loop: wordcount -= 2
 
@@ -643,7 +661,10 @@ NEON_doline_n6:
   
   mov       r3, #1600
   mul       r2, r2, r3
-  ldr       r3, =line_data
+  movw r3, #:lower16:(line_data - (.Lpicl6 + 8))
+  movt r3, #:upper16:(line_data - (.Lpicl6 + 8))
+.Lpicl6:
+  add r3, pc, r3
   add       r2, r3, r2           @ real_bplpt[0]
   add       r3, r2, #200
   add       r4, r3, #200
@@ -738,7 +759,7 @@ NEON_doline_n6_loop:
   vst1.8    {d0, d1, d2, d3}, [r0]!
   
   cmp       r1, #1    @ Exit from here if odd number of words
-  ldmeqia   sp!, {r4-r6, pc}
+  ldmiaeq   sp!, {r4-r6, pc}
 
   subs      r1, r1, #2    @ We handle 2 words (64 bit) per loop: wordcount -= 2
 
@@ -772,7 +793,10 @@ NEON_doline_n7:
   
   mov       r3, #1600
   mul       r2, r2, r3
-  ldr       r3, =line_data
+  movw r3, #:lower16:(line_data - (.Lpicl7 + 8))
+  movt r3, #:upper16:(line_data - (.Lpicl7 + 8))
+.Lpicl7:
+  add r3, pc, r3
   add       r2, r3, r2           @ real_bplpt[0]
   add       r3, r2, #200
   add       r4, r3, #200
@@ -878,7 +902,7 @@ NEON_doline_n7_loop:
   vst1.8    {d0, d1, d2, d3}, [r0]!
   
   cmp       r1, #1    @ Exit from here if odd number of words
-  ldmeqia   sp!, {r4-r7, pc}
+  ldmiaeq   sp!, {r4-r7, pc}
 
   subs      r1, r1, #2    @ We handle 2 words (64 bit) per loop: wordcount -= 2
 
@@ -919,7 +943,10 @@ NEON_doline_n8:
   
   mov       r3, #1600
   mul       r2, r2, r3
-  ldr       r3, =line_data
+  movw r3, #:lower16:(line_data - (.Lpicl8 + 8))
+  movt r3, #:upper16:(line_data - (.Lpicl8 + 8))
+.Lpicl8:
+  add r3, pc, r3
   add       r2, r3, r2           @ real_bplpt[0]
   add       r3, r2, #200
   add       r4, r3, #200
@@ -1027,7 +1054,7 @@ NEON_doline_n8_loop:
   vst1.8    {d0, d1, d2, d3}, [r0]!
   
   cmp       r1, #1    @ Exit from here if odd number of words
-  ldmeqia   sp!, {r4-r8, pc}
+  ldmiaeq   sp!, {r4-r8, pc}
 
   subs      r1, r1, #2    @ We handle 2 words (64 bit) per loop: wordcount -= 2
 

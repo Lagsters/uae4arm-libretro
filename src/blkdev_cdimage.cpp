@@ -774,7 +774,7 @@ static int command_play (int unitnum, int startlsn, int endlsn, int scan, play_s
 		return 0;
 	}
 	if (!cdu->thread_active) {
-		uae_start_thread (_T("cdimage_cdda_play"), cdda_play_func, cdu, NULL);
+		uae_start_thread (_T("cdimage_cdda_play"), (int(*)(void*))cdda_play_func, cdu, NULL);
 		while (!cdu->thread_active)
 			Sleep (10);
 	}

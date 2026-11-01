@@ -21,6 +21,16 @@
 #endif
 
 static uae_u32 natmem_size;
+#ifndef MAP_FIXED_NOREPLACE
+#define MAP_FIXED_NOREPLACE 0x100000
+#endif
+// Android: the process shares its address space with ART; MAP_FIXED would clobber its mappings.
+static void *mmap_exact(void *addr, size_t len) {
+  void *p = mmap(addr, len, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS | MAP_FIXED_NOREPLACE, -1, 0);
+  if (p != MAP_FAILED && p != addr) { munmap(p, len); return MAP_FAILED; }
+  return p;
+}
+
 uae_u32 max_z3fastmem;
 #ifdef VITA
 #define MAXAMIGAMEM 0x6000000 // 64 MB (16 MB for standard Amiga stuff, 16 MG RTG, 64 MB Z3 fast)
@@ -93,8 +103,10 @@ void alloc_AmigaMem(void)
   natmem_size = 16 * 1024 * 1024;
 #ifndef VITA
   // address returned by valloc() too high for later mmap() calls. Use mmap() also for first area.
-  regs.natmem_offset = (uae_u8*) mmap((void *)0x20000000, natmem_size + BARRIER,
-    PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS | MAP_FIXED, -1, 0);
+  regs.natmem_offset = (uae_u8*) mmap_exact((void *)0x20000000, natmem_size + BARRIER);
+  if (regs.natmem_offset == MAP_FAILED)
+    regs.natmem_offset = (uae_u8*) mmap(NULL, natmem_size + BARRIER, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+  if (regs.natmem_offset == MAP_FAILED) regs.natmem_offset = NULL;
 #elif defined(VITA)
 	regs.natmem_offset = (uae_u8*)memalign(MAXAMIGAMEM,  (natmem_size));
 #else
@@ -108,8 +120,7 @@ void alloc_AmigaMem(void)
 #ifdef VITA
 	additional_mem = (uae_u8*)malloc(ADDITIONAL_MEMSIZE + BARRIER);
 #else
-  additional_mem = (uae_u8*) mmap(regs.natmem_offset + Z3BASE_REAL, ADDITIONAL_MEMSIZE + BARRIER,
-    PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS | MAP_FIXED, -1, 0);
+  additional_mem = (uae_u8*) mmap_exact(regs.natmem_offset + Z3BASE_REAL, ADDITIONAL_MEMSIZE + BARRIER);
 #endif
   if(additional_mem != MAP_FAILED)
   {
@@ -130,8 +141,7 @@ void alloc_AmigaMem(void)
 #ifdef VITA
   additional_mem = (uae_u8*)malloc(ADDITIONAL_MEMSIZE + BARRIER);
 #else
-  additional_mem = (uae_u8*) mmap(regs.natmem_offset + Z3BASE_UAE, ADDITIONAL_MEMSIZE + BARRIER,
-    PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS | MAP_FIXED, -1, 0);
+  additional_mem = (uae_u8*) mmap_exact(regs.natmem_offset + Z3BASE_UAE, ADDITIONAL_MEMSIZE + BARRIER);
 #endif
   if(additional_mem != MAP_FAILED)
   {
@@ -223,8 +233,7 @@ bool HandleA3000Mem(int lowsize, int highsize)
       lowsize / (1024 * 1024), highsize / (1024 * 1024));
     a3000_totalsize = lowsize + highsize;
 #ifndef VITA
-    a3000_mem = (uae_u8*) mmap(regs.natmem_offset + (A3000MEM_START - lowsize), a3000_totalsize,
-      PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS | MAP_FIXED, -1, 0);
+    a3000_mem = (uae_u8*) mmap_exact(regs.natmem_offset + (A3000MEM_START - lowsize), a3000_totalsize);
 #else
 	a3000_mem = (uae_u8*)malloc(a3000_totalsize);
 #endif

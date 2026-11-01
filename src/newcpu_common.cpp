@@ -4,7 +4,7 @@
 #include "memory.h"
 #include "newcpu.h"
 
-static int movec_illg (int regno)
+int movec_illg (int regno)
 {
   int regno2 = regno & 0x7ff;
 

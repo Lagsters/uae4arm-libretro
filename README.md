@@ -88,3 +88,16 @@ Kickstarts supported:
 |CD32|KS v3.1 rev 40.060|**kick40060.CD32**|524 288|5f8924d013dd57a89cf349f4cdedc6b1|
 |CD32|Extended rev 40.060|**kick40060.CD32.ext**|524 288|bb72565701b1b6faece07d68ea5da639|
 
+
+## Android (Lagsters fork)
+
+`make -f Makefile.libretro platform=android NDK_BIN=<ndk>/toolchains/llvm/prebuilt/<host>/bin` builds
+`uae4arm_libretro_android.so` for armeabi-v7a with the NDK's clang. Changes for Android:
+
+- memory for the emulated Amiga is reserved with `MAP_FIXED_NOREPLACE` — `MAP_FIXED` would overwrite
+  mappings of the Android runtime (ART) living in the same process;
+- `neon_helper.s` loads addresses PC-relative (Android refuses text relocations);
+- clang fixes (UAL assembler syntax, linkage, narrowing);
+- no CD32/CDTV audio (FLAC, mp3) and no capsimg (IPF) — `libretro/android/`.
+
+Tags `android-*` publish the build as a GitHub release. License: GPLv2, see `COPYING`.

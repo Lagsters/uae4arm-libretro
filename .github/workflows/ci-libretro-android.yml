@@ -1,0 +1,38 @@
+name: CI libretro build Android
+
+on:
+  push:
+    branches: ['*']
+    tags: ['android-*']
+  pull_request:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Compile (armeabi-v7a)
+        run: |
+          NDK_BIN="$ANDROID_NDK_LATEST_HOME/toolchains/llvm/prebuilt/linux-x86_64/bin"
+          make -f Makefile.libretro platform=android NDK_BIN="$NDK_BIN" -j$(getconf _NPROCESSORS_ONLN)
+          mkdir -p out/armeabi-v7a
+          "$NDK_BIN/llvm-strip" -o out/armeabi-v7a/uae4arm_libretro_android.so uae4arm_libretro_android.so
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: uae4arm_libretro_android-armeabi-v7a
+          path: out/armeabi-v7a/uae4arm_libretro_android.so
+
+      - name: Release
+        if: startsWith(github.ref, 'refs/tags/android-')
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          cp out/armeabi-v7a/uae4arm_libretro_android.so uae4arm_libretro_android-armeabi-v7a.so
+          gh release create "$GITHUB_REF_NAME" uae4arm_libretro_android-armeabi-v7a.so \
+            --title "$GITHUB_REF_NAME" \
+            --notes "Android armeabi-v7a build of uae4arm (libretro). Source: this tag. License: GPLv2 (COPYING). Built without capsimg (IPF)."

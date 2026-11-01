@@ -2761,7 +2761,7 @@ const struct expansionromtype expansionroms[] = {
 		NULL, 0,
 		false, EXPANSIONTYPE_INTERNAL,
 		0, 0, 0, false, NULL,
-		false, 0, cdtvsram_settings
+		false, 0, NULL
 	},
 	//{
 	//	_T("cdtvcr"), _T("CDTV-CR"), _T("Commodore"),

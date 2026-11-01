@@ -170,15 +170,23 @@ else ifeq ($(platform), classic_armv8_a35)
 		endif
 	endif
 else ifeq ($(platform), android)
-	CC = arm-linux-androideabi-gcc
-	CXX =arm-linux-androideabi-g++
-	AR = @arm-linux-androideabi-ar
-	LD = @arm-linux-androideabi-g++ 
+	# Android NDK r21+ (clang), armeabi-v7a. NDK_BIN = toolchains/llvm/prebuilt/<host>/bin
+	ANDROID_API ?= 28
+	CC = $(NDK_BIN)/armv7a-linux-androideabi$(ANDROID_API)-clang
+	CXX = $(NDK_BIN)/armv7a-linux-androideabi$(ANDROID_API)-clang++
+	CC_AS = $(CC)
+	AR = $(NDK_BIN)/llvm-ar
 	TARGET := $(TARGET_NAME)_libretro_android.so
 	fpic := -fPIC
-	LDFLAGS := -lz -lm -llog
-	SHARED :=  -Wl,--fix-cortex-a8 -shared -Wl,--version-script=$(CORE_DIR)/libretro/link.T -Wl,--no-undefined
+	SHARED := -shared -Wl,--version-script=$(CORE_DIR)/libretro/link.T -Wl,--no-undefined -Wl,-Bsymbolic
+	LDFLAGS := -lz -lm -llog -static-libstdc++
+	CAPS :=
+	HAVE_NEON = 1
+	MORE_CFLAGS += -DARMV6T2 -DARM_HAS_DIV
+	CPU_FLAGS += -marm -mfpu=neon
 	PLATFLAGS += -DANDROID -DRETRO -DAND -DANDPORT -DARM_OPT_TEST=1
+	PLATFLAGS += -Ideps -Ilibretro/android -include libretro/android/android_shim.h
+	PLATFLAGS += -Wno-register -Wno-c++11-narrowing
 # Sony Ps vita
 else ifeq ($(platform), vita)
 	TARGET := $(TARGET_NAME)_libretro_vita.a
@@ -244,6 +252,10 @@ DEFINES += -D__LIBRETRO__ $(DEFS) $(MORE_CFLAGS)
 CFLAGS += $(DEFINES) -DINLINE="inline" $(CPU_FLAGS) -fexceptions -fpermissive
 
 include Makefile.common
+ifeq ($(platform), android)
+# CD32/CDTV audio (FLAC, mp3) unsupported on Android: no libFLAC/libmpg123 in the NDK.
+OBJS += libretro/android/cdaudio_stub.o
+endif
 
 OBJECTS += $(SOURCES_C:.c=.o) $(SOURCES_CXX:.cpp=.o) $(SOURCES_ASM:.S=.o)
 
@@ -255,7 +267,7 @@ ASFLAGS += $(CPU_FLAGS)
 
 all: $(TARGET)
 
-CAPS = capsimg.so
+CAPS ?= capsimg.so
 
 capsimg.so: capsimg
 	(cd capsimg ; ./bootstrap ; ./configure --host=arm ; $(MAKE) ; cp capsimg.so ../ )
