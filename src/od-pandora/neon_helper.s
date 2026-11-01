@@ -1,3 +1,4 @@
+.syntax unified
 @ Some functions and tests to increase performance in drawing.cpp and custom.cpp
 
 .arm
