@@ -1135,6 +1135,96 @@ void retro_audiocb(signed short *sound_buffer,int sndbufsize)
 
 extern int Retro_PollEvent();
 
+/* Automatic vertical crop, like PUAE's crop "auto": games often draw fewer lines than the
+ * frame (e.g. 200 of 240), leaving an empty band the frontend would scale along with the
+ * picture. The rows that differ from the border colour (top-left pixel) decide the crop,
+ * rounded up to a standard Amiga height so a title screen with a few lines of text is not
+ * blown up; it is reported via SET_GEOMETRY with the aspect ratio grown by the cut, so pixels
+ * keep their shape. */
+static unsigned crop_top, crop_h, crop_frame_h;
+static unsigned crop_candidate_top, crop_candidate_h, crop_stable_checks, crop_frame_counter;
+
+static const unsigned CROP_CHECK_EVERY_FRAMES = 5;
+static const unsigned CROP_STABLE_CHECKS = 10; /* 10 checks x 5 frames = 1 s at 50 fps */
+
+static const unsigned CROP_HEIGHTS[] = { 200, 224, 240, 256 };
+
+/* Smallest standard height (in frame lines) that holds the content rows [top, bottom). */
+static void crop_snap(unsigned frame_h, unsigned *top, unsigned *bottom)
+{
+   const unsigned content_h = *bottom - *top;
+   unsigned h = frame_h;
+   for (unsigned base : CROP_HEIGHTS)
+   {
+      const unsigned candidate = base << currprefs.gfx_vresolution;
+      if (candidate >= content_h && candidate < h) h = candidate;
+   }
+   unsigned t = *top > (h - content_h) / 2 ? *top - (h - content_h) / 2 : 0;
+   if (t + h > frame_h) t = frame_h - h;
+   *top = t;
+   *bottom = t + h;
+}
+
+static bool row_is_empty(unsigned y)
+{
+   const auto *row = Retro_Screen + y * retrow;
+   const auto border = Retro_Screen[0];
+   for (unsigned x = 0; x < retrow; x++)
+      if (row[x] != border) return false;
+   return true;
+}
+
+static void crop_apply(unsigned top, unsigned h, unsigned frame_h)
+{
+   crop_top = top;
+   crop_h = h;
+   struct retro_game_geometry geom = { retrow, h, 1280, 1024, (float)(4.0 / 3.0 * frame_h / h) };
+   environ_cb(RETRO_ENVIRONMENT_SET_GEOMETRY, &geom);
+}
+
+static void autocrop_update(unsigned frame_h)
+{
+   if (frame_h != crop_frame_h)
+   {
+      crop_frame_h = frame_h;
+      crop_stable_checks = 0;
+      crop_apply(0, frame_h, frame_h);
+   }
+   if (++crop_frame_counter < CROP_CHECK_EVERY_FRAMES) return;
+   crop_frame_counter = 0;
+
+   unsigned top = 0, bottom = frame_h;
+   while (top < frame_h && row_is_empty(top)) top++;
+   if (top == frame_h) return; /* blank frame (e.g. fade-out) says nothing about the layout */
+   while (bottom > top && row_is_empty(bottom - 1)) bottom--;
+   crop_snap(frame_h, &top, &bottom);
+   const unsigned h = bottom - top;
+
+   /* Content outside the current crop is shown at once; a smaller crop waits until stable. */
+   if (top < crop_top || bottom > crop_top + crop_h)
+   {
+      unsigned new_top = top < crop_top ? top : crop_top;
+      unsigned new_bottom = bottom > crop_top + crop_h ? bottom : crop_top + crop_h;
+      crop_snap(frame_h, &new_top, &new_bottom);
+      crop_stable_checks = 0;
+      crop_apply(new_top, new_bottom - new_top, frame_h);
+      return;
+   }
+   if (top == crop_top && h == crop_h) return;
+   if (top != crop_candidate_top || h != crop_candidate_h)
+   {
+      crop_candidate_top = top;
+      crop_candidate_h = h;
+      crop_stable_checks = 0;
+      return;
+   }
+   if (++crop_stable_checks >= CROP_STABLE_CHECKS)
+   {
+      crop_stable_checks = 0;
+      crop_apply(top, h, frame_h);
+   }
+}
+
 void retro_run(void)
 {
    int x;
@@ -1195,7 +1285,9 @@ void retro_run(void)
 
    flush_audio();
 
-   video_cb(Retro_Screen,retrow,retroh * 1 << (currprefs.gfx_vresolution),retrow<<PIXEL_BYTES);
+   const unsigned frame_h = retroh << currprefs.gfx_vresolution;
+   autocrop_update(frame_h);
+   video_cb(Retro_Screen + crop_top * retrow, retrow, crop_h, retrow<<PIXEL_BYTES);
 
 }
 
