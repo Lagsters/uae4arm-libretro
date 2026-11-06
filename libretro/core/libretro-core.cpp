@@ -1146,12 +1146,12 @@ static unsigned crop_candidate_h, crop_stable_checks, crop_frame_counter;
 static bool crop_settled; /* false until the first crop after a new frame size */
 
 /* Every change of the crop resizes the picture on screen, so it waits for steady content:
- * growing after 0.2 s (one-frame glitches between scenes are ignored), shrinking after 60 s
- * (demos alternate screens of different heights every 10-20 s and settle on the larger one;
- * a game screen held for a minute still gets the tighter crop). */
+ * growing after 0.2 s (one-frame glitches between scenes are ignored), shrinking after 20 s
+ * (a title screen taller than the game grows the crop once per demo loop, the game itself
+ * gets the tighter crop after 20 s of play). */
 static const unsigned CROP_CHECK_EVERY_FRAMES = 5;
 static const unsigned CROP_GROW_CHECKS = 2;    /* 2 x 5 frames = 0.2 s at 50 fps */
-static const unsigned CROP_SHRINK_CHECKS = 600; /* 600 x 5 frames = 60 s at 50 fps */
+static const unsigned CROP_SHRINK_CHECKS = 200; /* 200 x 5 frames = 20 s at 50 fps */
 static const unsigned CROP_FIRST_CHECKS = 10;   /* 10 x 5 frames = 1 s: first crop of a frame size */
 
 static const unsigned CROP_HEIGHTS[] = { 200, 224, 240, 256 };
