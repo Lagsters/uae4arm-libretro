@@ -1205,37 +1205,44 @@ static void autocrop_update(unsigned frame_h)
    while (top < frame_h && row_is_empty(top)) top++;
    if (top == frame_h) return; /* blank frame (e.g. fade-out) says nothing about the layout */
    while (bottom > top && row_is_empty(bottom - 1)) bottom--;
-   crop_snap(frame_h, &top, &bottom);
 
-   const bool grows = top < crop_top || bottom > crop_top + crop_h;
-   if (grows)
+   const bool fits = top >= crop_top && bottom <= crop_top + crop_h;
+   unsigned new_top = top, new_bottom = bottom;
+   crop_snap(frame_h, &new_top, &new_bottom);
+   unsigned new_h = new_bottom - new_top;
+   unsigned needed;
+   if (new_h > crop_h)
+      needed = CROP_GROW_CHECKS;
+   else if (!fits)
    {
-      /* Keep what the current crop shows: the new one covers both. */
-      unsigned new_top = top < crop_top ? top : crop_top;
-      unsigned new_bottom = bottom > crop_top + crop_h ? bottom : crop_top + crop_h;
-      crop_snap(frame_h, &new_top, &new_bottom);
-      top = new_top;
-      bottom = new_bottom;
+      /* Screens of one game draw at different heights in the frame: content that still fits
+       * the current height moves the crop instead of growing it — the picture keeps its size. */
+      const unsigned content_h = bottom - top;
+      new_h = crop_h;
+      new_top = top > (crop_h - content_h) / 2 ? top - (crop_h - content_h) / 2 : 0;
+      if (new_top + crop_h > frame_h) new_top = frame_h - crop_h;
+      needed = CROP_GROW_CHECKS;
    }
-   const unsigned target_h = bottom - top;
-   if (top == crop_top && target_h == crop_h)
+   else if (new_h < crop_h)
+      needed = crop_settled ? CROP_SHRINK_CHECKS : CROP_FIRST_CHECKS;
+   else
    {
       crop_stable_checks = 0;
       return;
    }
+
    /* Only the height has to stay: the position follows the content, which may move a line
     * or two (sparkles, scrolling) without changing the screen layout. */
-   if (target_h != crop_candidate_h)
+   if (new_h != crop_candidate_h)
    {
-      crop_candidate_h = target_h;
+      crop_candidate_h = new_h;
       crop_stable_checks = 0;
    }
-   const unsigned needed = grows ? CROP_GROW_CHECKS : crop_settled ? CROP_SHRINK_CHECKS : CROP_FIRST_CHECKS;
    if (++crop_stable_checks >= needed)
    {
       crop_stable_checks = 0;
       crop_settled = true;
-      crop_apply(top, target_h, frame_h);
+      crop_apply(new_top, new_h, frame_h);
    }
 }
 
