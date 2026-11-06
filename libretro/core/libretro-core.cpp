@@ -1142,10 +1142,17 @@ extern int Retro_PollEvent();
  * blown up; it is reported via SET_GEOMETRY with the aspect ratio grown by the cut, so pixels
  * keep their shape. */
 static unsigned crop_top, crop_h, crop_frame_h;
-static unsigned crop_candidate_top, crop_candidate_h, crop_stable_checks, crop_frame_counter;
+static unsigned crop_candidate_h, crop_stable_checks, crop_frame_counter;
+static bool crop_settled; /* false until the first crop after a new frame size */
 
+/* Every change of the crop resizes the picture on screen, so it waits for steady content:
+ * growing after 0.2 s (one-frame glitches between scenes are ignored), shrinking after 60 s
+ * (demos alternate screens of different heights every 10-20 s and settle on the larger one;
+ * a game screen held for a minute still gets the tighter crop). */
 static const unsigned CROP_CHECK_EVERY_FRAMES = 5;
-static const unsigned CROP_STABLE_CHECKS = 10; /* 10 checks x 5 frames = 1 s at 50 fps */
+static const unsigned CROP_GROW_CHECKS = 2;    /* 2 x 5 frames = 0.2 s at 50 fps */
+static const unsigned CROP_SHRINK_CHECKS = 600; /* 600 x 5 frames = 60 s at 50 fps */
+static const unsigned CROP_FIRST_CHECKS = 10;   /* 10 x 5 frames = 1 s: first crop of a frame size */
 
 static const unsigned CROP_HEIGHTS[] = { 200, 224, 240, 256 };
 
@@ -1188,6 +1195,7 @@ static void autocrop_update(unsigned frame_h)
    {
       crop_frame_h = frame_h;
       crop_stable_checks = 0;
+      crop_settled = false;
       crop_apply(0, frame_h, frame_h);
    }
    if (++crop_frame_counter < CROP_CHECK_EVERY_FRAMES) return;
@@ -1198,30 +1206,36 @@ static void autocrop_update(unsigned frame_h)
    if (top == frame_h) return; /* blank frame (e.g. fade-out) says nothing about the layout */
    while (bottom > top && row_is_empty(bottom - 1)) bottom--;
    crop_snap(frame_h, &top, &bottom);
-   const unsigned h = bottom - top;
 
-   /* Content outside the current crop is shown at once; a smaller crop waits until stable. */
-   if (top < crop_top || bottom > crop_top + crop_h)
+   const bool grows = top < crop_top || bottom > crop_top + crop_h;
+   if (grows)
    {
+      /* Keep what the current crop shows: the new one covers both. */
       unsigned new_top = top < crop_top ? top : crop_top;
       unsigned new_bottom = bottom > crop_top + crop_h ? bottom : crop_top + crop_h;
       crop_snap(frame_h, &new_top, &new_bottom);
-      crop_stable_checks = 0;
-      crop_apply(new_top, new_bottom - new_top, frame_h);
-      return;
+      top = new_top;
+      bottom = new_bottom;
    }
-   if (top == crop_top && h == crop_h) return;
-   if (top != crop_candidate_top || h != crop_candidate_h)
+   const unsigned target_h = bottom - top;
+   if (top == crop_top && target_h == crop_h)
    {
-      crop_candidate_top = top;
-      crop_candidate_h = h;
       crop_stable_checks = 0;
       return;
    }
-   if (++crop_stable_checks >= CROP_STABLE_CHECKS)
+   /* Only the height has to stay: the position follows the content, which may move a line
+    * or two (sparkles, scrolling) without changing the screen layout. */
+   if (target_h != crop_candidate_h)
+   {
+      crop_candidate_h = target_h;
+      crop_stable_checks = 0;
+   }
+   const unsigned needed = grows ? CROP_GROW_CHECKS : crop_settled ? CROP_SHRINK_CHECKS : CROP_FIRST_CHECKS;
+   if (++crop_stable_checks >= needed)
    {
       crop_stable_checks = 0;
-      crop_apply(top, h, frame_h);
+      crop_settled = true;
+      crop_apply(top, target_h, frame_h);
    }
 }
 
